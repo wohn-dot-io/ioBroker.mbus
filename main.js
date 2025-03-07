@@ -285,6 +285,7 @@ function finishDevice(deviceId, callback) {
 }
 
 function updateDevices() {
+    adapter.log.info("updateDevices ++++++++++++++++++");
     if (waitForScan) {
         deviceCommunicationInProgress = false;
         makeScan(waitForScan);
@@ -323,6 +324,8 @@ function updateDevices() {
             return;
         }
         mbusMaster.getData(deviceId, (err, data) => {
+            adapter.log.info(JSON.stringify(data));
+
             if (!mBusDevices[deviceId]) {
                 return;
             }
@@ -343,7 +346,7 @@ function updateDevices() {
                 );
             }
 
-            adapter.log.debug('M-Bus ID ' + deviceId + ' data: ' + JSON.stringify(data, null, 2));
+            adapter.log.info('M-Bus ID ' + deviceId + ' data: ' + JSON.stringify(data, null, 2));
 
             initializeDeviceObjects(deviceId, data, () => {
                 if (!mBusDevices[deviceId]) {
@@ -487,7 +490,27 @@ function getRole(unit, type) {
     return 'value';
 }
 
+function getCustomTopic(type) {
+    switch (type) {
+        case 'Energy':
+            return 'total_energy_consumption';
+        case 'Power':
+            return 'current_energy_consumption';
+        case 'Volume':
+            return 'total_volume';
+        case 'Volume flow':
+            return 'absolute_volumetric_flow';
+        case 'Flow temperature':
+            return 'supply_temperature'
+        case 'Return temperature':
+            return 'return_temperature'
+    }
+
+    return '';
+}
+
 function initializeDeviceObjects(deviceId, data, callback) {
+    adapter.log.info(JSON.stringify(data));
     let neededStates = [];
     function createStates() {
         if (!neededStates.length) {
@@ -536,7 +559,12 @@ function initializeDeviceObjects(deviceId, data, callback) {
                 type: state.type,
                 read: true,
                 write: false,
-                unit: state.unit
+                unit: state.unit,
+                customConfigs: {
+                    linkedId: mBusDevices[deviceId].linkedId, // Wohnio custom
+                    standardName: getCustomTopic(type), // Wohnio custom  -- NOTE: it does not work for all the cases !!
+                    mqttEnabled: false, // Wohnio custom
+                },
             },
             native: {
                 id: state.id,
